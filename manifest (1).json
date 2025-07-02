@@ -1,0 +1,22 @@
+{
+  "name": "GlowNet",
+  "short_name": "GlowNet",
+  "id": "/",
+  "start_url": "/",
+  "description": "GlowNet is a mining app where users can earn GN coins daily by logging in and referring friends.",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00bfff",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
