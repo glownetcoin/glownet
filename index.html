@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00bfff">
+  <title>GlowNet Mining App (Cooldown Edition)</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { background: #0e0e0e; color: white; font-family: Arial; text-align: center; padding: 20px; }
+    button { background: #00bfff; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-top: 10px; }
+    #miningStatus { margin-top: 20px; font-size: 1.2em; }
+    input { padding: 8px; margin-top: 10px; border: none; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>GlowNet Mining</h1>
+  <div id="authSection">
+    <input type="text" id="referralCode" placeholder="Referral Code (optional)" />
+    <button onclick="signIn()">Sign In Anonymously</button>
+  </div>
+  <div id="appSection" style="display:none">
+    <p>Welcome, <span id="userEmail"></span></p>
+    <button onclick="startMining()">Start Mining</button>
+    <div id="miningStatus"></div>
+    <p>Mining Rate: <span id="miningRate">0.024</span> GN/day (<span id="miningRateHour">0.01</span>/h)</p>
+    <p>Total Balance: <span id="balance">0.0000</span> GN</p>
+    <p>Referrals: <span id="referrals">0</span></p>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHQ-x5VlV9itIalUlT6yeFGxpg5pzNOlQ",
+      authDomain: "glownet2025.firebaseapp.com",
+      projectId: "glownet2025",
+      storageBucket: "glownet2025.firebasestorage.app",
+      messagingSenderId: "138669626806",
+      appId: "1:138669626806:web:ba9cbed197bed79542dd17"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser;
+
+    function signIn() {
+      auth.signInAnonymously().then(() => {
+        currentUser = auth.currentUser;
+        const referralCode = document.getElementById("referralCode").value.trim();
+        const userRef = db.collection("users").doc(currentUser.uid);
+
+        userRef.get().then(doc => {
+          if (!doc.exists) {
+            let initialData = { balance: 1, referrals: 0, miningRate: 0.024, lastMinedAt: null };
+            if (referralCode) {
+              const refRef = db.collection("users").doc(referralCode);
+              refRef.get().then(refDoc => {
+                if (refDoc.exists) {
+                  let refData = refDoc.data();
+                  refRef.update({
+                    referrals: (refData.referrals || 0) + 1,
+                    balance: (refData.balance || 0) + 1,
+                    miningRate: (refData.miningRate || 0.024) + 0.01
+                  });
+                }
+              });
+            }
+            userRef.set(initialData);
+          }
+          loadUser();
+        });
+      });
+    }
+
+    function loadUser() {
+      document.getElementById("authSection").style.display = "none";
+      document.getElementById("appSection").style.display = "block";
+      const user = auth.currentUser;
+      document.getElementById("userEmail").innerText = user.uid;
+      const userRef = db.collection("users").doc(user.uid);
+      userRef.onSnapshot(doc => {
+        const data = doc.data();
+        const miningRate = data.miningRate || 0.024;
+        const miningRateHour = miningRate / 24;
+        document.getElementById("miningRate").innerText = miningRate.toFixed(3);
+        document.getElementById("miningRateHour").innerText = miningRateHour.toFixed(3);
+        document.getElementById("balance").innerText = data.balance.toFixed(4);
+        document.getElementById("referrals").innerText = data.referrals;
+      });
+    }
+
+    function startMining() {
+      const userRef = db.collection("users").doc(auth.currentUser.uid);
+      userRef.get().then(doc => {
+        if (doc.exists) {
+          const data = doc.data();
+          const now = new Date();
+          const lastMinedAt = data.lastMinedAt ? new Date(data.lastMinedAt) : null;
+          const hoursPassed = lastMinedAt ? (now - lastMinedAt) / (1000 * 60 * 60) : 25;
+
+          if (hoursPassed >= 24) {
+            const newBalance = (data.balance || 0) + (data.miningRate || 0.024);
+            userRef.update({
+              balance: newBalance,
+              lastMinedAt: now.toISOString()
+            });
+            document.getElementById("miningStatus").innerText = `Mining Done! You earned ${data.miningRate.toFixed(3)} GN.`;
+          } else {
+            const remaining = (24 - hoursPassed).toFixed(2);
+            document.getElementById("miningStatus").innerText = `Already mined. Come back in ${remaining} hours.`;
+          }
+        }
+      });
+    }
+  </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('serviceWorker.js').then(function (registration) {
+        console.log('ServiceWorker registered with scope:', registration.scope);
+      }, function (err) {
+        console.log('ServiceWorker registration failed:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
